@@ -90,10 +90,8 @@ async def button_handler(update, context):
         name = query.data.replace("curator_", "")
         context.user_data["curator"] = name
         context.user_data["step"] = "anketa"
-        curator_info = CURATORS.get(name, {})
-        whatsapp = curator_info.get("whatsapp", "")
         await query.edit_message_text(
-            f"Ваш куратор: {name}\n\nВступите в WhatsApp чат вашего кураторства:\n{whatsapp}\n\nЗатем заполните анкету - скопируйте, вставьте свои данные и отправьте:\n\n" + ANKETA
+            f"Ваш куратор: {name}\n\nЗаполните анкету - скопируйте, вставьте свои данные и отправьте:\n\n" + ANKETA
         )
 
     elif query.data == "start_test":
@@ -195,9 +193,15 @@ async def message_handler(update, context):
 
         await update.message.reply_text(summary + "\n\n" + "\n\n".join(result_lines))
         await update.message.reply_text(MSG2)
+
+        curator_name = context.user_data.get("curator", "Неизвестно")
+        curator_info = CURATORS.get(curator_name, {})
+        curator_whatsapp = curator_info.get("whatsapp", "")
+
         await update.message.reply_text(
-            "Вступайте в наши WhatsApp группы:\n\n"
-            "Группа преподавателей школы:\n"
+            "Вступайте в WhatsApp группы:\n\n"
+            f"Чат вашего кураторства ({curator_name}):\n{curator_whatsapp}\n\n"
+            "Группа всех преподавателей школы:\n"
             "https://chat.whatsapp.com/K8XoKiTVStE496t9m4E8r0\n\n"
             "Чат заявок студентов:\n"
             "https://chat.whatsapp.com/FPWhYg6tpEHKgPkrwmav4L\n"
@@ -207,9 +211,6 @@ async def message_handler(update, context):
                 [InlineKeyboardButton("Я вступил в чаты", callback_data="joined_whatsapp")]
             ])
         )
-
-        curator_name = context.user_data.get("curator", "Неизвестно")
-        curator_info = CURATORS.get(curator_name, {})
         curator_id = curator_info.get("id")
         curator_username = curator_info.get("username", "")
         report = f"Результат теста (куратор: {curator_username}):\n{correct}/{total}\n\n" + "\n\n".join(report_lines)
@@ -234,4 +235,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
