@@ -134,7 +134,7 @@ async def message_handler(update, context):
         curator_info = CURATORS.get(curator_name, {})
         curator_id = curator_info.get("id")
         curator_username = curator_info.get("username", "")
-        context.user_data["step"] = "materials"
+        context.user_data["step"] = "documents"
 
         report = f"Новый преподаватель!\nКуратор: {curator_username}\n\n{text}"
         await context.bot.send_message(chat_id=GROUP_ID, text=report)
@@ -144,13 +144,28 @@ async def message_handler(update, context):
             except:
                 pass
 
-        await update.message.reply_text(MSG1)
         await update.message.reply_text(
-            "После изучения материалов нажмите кнопку чтобы пройти тест:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Начать тест", callback_data="start_test")]
-            ])
+            "Анкета отправлена!\n\n"
+            "Теперь отправьте документы по одному:\n\n"
+            "1. Скан удостоверения личности\n"
+            "2. Адресная справка\n"
+            "3. Справка психо/нарко\n"
+            "4. Контакты 2 знакомых\n\n"
+            "Когда отправите все - напишите готово"
         )
+
+    elif step == "documents":
+        if "готово" in text.lower() or "done" in text.lower():
+            context.user_data["step"] = "materials"
+            await update.message.reply_text(MSG1)
+            await update.message.reply_text(
+                "После изучения материалов нажмите кнопку чтобы пройти тест:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Начать тест", callback_data="start_test")]
+                ])
+            )
+        else:
+            await update.message.reply_text("Отправляйте документы файлами или фото. Когда всё отправите - напишите готово")
 
     elif step == "test":
         lines = [l.strip() for l in text.split("\n") if l.strip()]
@@ -186,12 +201,23 @@ async def message_handler(update, context):
 
         total = len(QUESTIONS)
         summary = f"Тест завершен! Правильных: {correct} из {total}\n\n"
-        if correct >= total * 0.7:
-            summary += "Отлично! Вы успешно прошли тест."
-        else:
-            summary += "Рекомендуем повторить материалы и пройти тест заново. Напишите /start"
 
-        await update.message.reply_text(summary + "\n\n" + "\n\n".join(result_lines))
+        await update.message.reply_text(summary + "\n\n".join(result_lines))
+
+        if correct < 5:
+            context.user_data["step"] = "materials"
+            await update.message.reply_text(
+                "К сожалению, вы набрали меньше 5 правильных ответов.\n\n"
+                "Пожалуйста, повторно изучите материалы и пройдите тест заново.\n\n"
+                "Нажмите кнопку чтобы пройти тест ещё раз:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Пройти тест заново", callback_data="start_test")]
+                ])
+            )
+            return
+
+        summary_ok = "Отлично! Вы успешно прошли тест. Добро пожаловать в команду!"
+        await update.message.reply_text(summary_ok)
         await update.message.reply_text(MSG2)
 
         curator_name = context.user_data.get("curator", "Неизвестно")
@@ -225,10 +251,21 @@ async def message_handler(update, context):
         await update.message.reply_text("Вы уже завершили оформление! Если нужно начать заново - напишите /start")
 
 
+async def file_handler(update, context):
+    if context.user_data.get("step") == "documents":
+        await context.bot.forward_message(
+            chat_id=GROUP_ID,
+            from_chat_id=update.effective_chat.id,
+            message_id=update.message.message_id
+        )
+        await update.message.reply_text("Документ получен! Отправляйте следующий или напишите готово")
+
+
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.Document.ALL | filters.PHOTO, file_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     app.run_polling()
 
