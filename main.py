@@ -10,7 +10,7 @@ CURATORS = {
     "Нурай": {"id": 683139471, "username": "@nuray_ik", "whatsapp": "https://chat.whatsapp.com/Gzf8MM9kWqs2PhEgFRvEC9"},
     "Томирис": {"id": 862482306, "username": "@Tomiris_Kaken", "whatsapp": "https://chat.whatsapp.com/Bx3p2g1gaUdCBAbeufhH5W"},
     "Сара": {"id": 778335083, "username": "@Sarang_Saruman", "whatsapp": "https://chat.whatsapp.com/HVs09o62k3DDE0BVC1TiIB"},
-    "Майра": {"id": None, "username": "@mayra", "whatsapp": "https://chat.whatsapp.com/Ll3Fe6j6n1tDdEfL48zlEr"},
+    "Майра": {"id": 1502983143, "username": "@mairatleubay", "whatsapp": "https://chat.whatsapp.com/Ll3Fe6j6n1tDdEfL48zlEr"},
 }
 
 logging.basicConfig(level=logging.INFO)
