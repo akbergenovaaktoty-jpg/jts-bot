@@ -4,6 +4,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 
 BOT_TOKEN = "8803054985:AAGuBZ8DgwGvY7mFODUfXqOBOwGlTJVMJSo"
 GROUP_ID = -5298600648
+DOCS_GROUP_ID = -5122861893
 
 CURATORS = {
     "Айдана": {"id": 699436618, "username": "@Aidana_seitpeshova", "whatsapp": "https://chat.whatsapp.com/KTQWMSDY6MF0clO1F9hlPa"},
@@ -259,7 +260,7 @@ async def message_handler(update, context):
 async def file_handler(update, context):
     if context.user_data.get("step") == "documents":
         await context.bot.forward_message(
-            chat_id=GROUP_ID,
+            chat_id=DOCS_GROUP_ID,
             from_chat_id=update.effective_chat.id,
             message_id=update.message.message_id
         )
