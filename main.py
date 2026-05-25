@@ -73,6 +73,9 @@ MSG2 = """Концепт работы:
 
 
 async def start(update, context):
+    chat_id = update.effective_chat.id
+    chat_title = update.effective_chat.title
+    logging.info(f"CHAT ID: {chat_id} | TITLE: {chat_title}")
     context.user_data.clear()
     context.user_data["step"] = "choose_curator"
     keyboard = [[InlineKeyboardButton(name, callback_data=f"curator_{name}")] for name in CURATORS]
