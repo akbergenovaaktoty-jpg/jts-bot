@@ -1,10 +1,14 @@
 import logging
+import json
+import urllib.request
+import urllib.parse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 BOT_TOKEN = "8803054985:AAGuBZ8DgwGvY7mFODUfXqOBOwGlTJVMJSo"
 GROUP_ID = -5298600648
 DOCS_GROUP_ID = -5122861893
+SHEETS_URL = "https://script.google.com/macros/s/AKfycbyfcf_OARttxq-QbF6Z4vSC1xvqjYS20tPsy5u32v0_HstV_kwNwYAaYMa4AzI74cvLHQ/exec"
 
 CURATORS = {
     "Айдана": {"id": 699436618, "username": "@Aidana_seitpeshova", "whatsapp": "https://chat.whatsapp.com/KTQWMSDY6MF0clO1F9hlPa"},
@@ -15,6 +19,39 @@ CURATORS = {
 }
 
 logging.basicConfig(level=logging.INFO)
+
+
+def parse_anketa(text):
+    fields = {
+        "fio": "", "birthdate": "", "phone": "", "email": "",
+        "experience": "", "languages": "", "levels": "", "ages": "",
+        "certificates": "", "tariffs": ""
+    }
+    keys = {
+        "фио": "fio", "год рождения": "birthdate", "номер": "phone",
+        "email": "email", "стаж": "experience", "языки": "languages",
+        "уровни": "levels", "возрасты": "ages", "сертификат": "certificates",
+        "тарифы": "tariffs", "спец тариф": "tariffs"
+    }
+    for line in text.split("\n"):
+        if ":" in line:
+            key, _, val = line.partition(":")
+            key = key.strip().lower()
+            val = val.strip()
+            for k, field in keys.items():
+                if k in key:
+                    fields[field] = val
+                    break
+    return fields
+
+
+def send_to_sheets(data):
+    try:
+        payload = json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(SHEETS_URL, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as e:
+        logging.error(f"Sheets error: {e}")
 
 ANKETA = """Заполните анкету - скопируйте, вставьте свои данные и отправьте:
 
@@ -147,6 +184,11 @@ async def message_handler(update, context):
                 await context.bot.send_message(chat_id=curator_id, text=report)
             except:
                 pass
+
+        # Отправляем в Google Sheets
+        parsed = parse_anketa(text)
+        parsed["curator"] = curator_name
+        send_to_sheets(parsed)
 
         await update.message.reply_text(
             "Анкета отправлена!\n\n"
