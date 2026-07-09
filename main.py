@@ -116,10 +116,9 @@ async def start(update, context):
     logging.info(f"CHAT ID: {chat_id} | TITLE: {chat_title}")
     context.user_data.clear()
     context.user_data["step"] = "choose_curator"
-    keyboard = [[InlineKeyboardButton(name, callback_data=f"curator_{name}")] for name in CURATORS]
+    curators_list = "\n".join([f"- {name}" for name in CURATORS])
     await update.message.reply_text(
-        "Добро пожаловать в школу!\n\nВыберите вашего куратора:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        f"Добро пожаловать в школу!\n\nНапишите имя вашего куратора:\n\n{curators_list}"
     )
 
 
@@ -162,8 +161,29 @@ async def message_handler(update, context):
     step = context.user_data.get("step")
     text = update.message.text.strip()
 
-    if not step or step == "choose_curator":
+    if not step:
         await update.message.reply_text("Напишите /start чтобы начать.")
+        return
+
+    if step == "choose_curator":
+        curator_name = text.strip().capitalize()
+        # Ищем куратора по имени (частичное совпадение)
+        matched = None
+        for name in CURATORS:
+            if text.strip().lower() in name.lower() or name.lower() in text.strip().lower():
+                matched = name
+                break
+        if not matched:
+            curators_list = "\n".join([f"- {name}" for name in CURATORS])
+            await update.message.reply_text(f"Куратор не найден. Напишите одно из имён:\n\n{curators_list}")
+            return
+        context.user_data["curator"] = matched
+        curator_info = CURATORS.get(matched, {})
+        whatsapp = curator_info.get("whatsapp", "")
+        context.user_data["step"] = "anketa"
+        await update.message.reply_text(
+            f"Ваш куратор: {matched}\n\nВступите в WhatsApp чат вашего кураторства:\n{whatsapp}\n\nЗаполните анкету - скопируйте, вставьте свои данные и отправьте:\n\n" + ANKETA
+        )
         return
 
     if step == "anketa":
@@ -207,13 +227,17 @@ async def message_handler(update, context):
             context.user_data["step"] = "materials"
             await update.message.reply_text(MSG1)
             await update.message.reply_text(
-                "После изучения материалов нажмите кнопку чтобы пройти тест:",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Начать тест", callback_data="start_test")]
-                ])
+                "После изучения материалов напишите тест чтобы начать тест:"
             )
         else:
             await update.message.reply_text("Отправляйте документы файлами или фото. Когда всё отправите - напишите готово")
+
+    elif step == "materials":
+        if "тест" in text.lower():
+            context.user_data["step"] = "test"
+            await update.message.reply_text(TEST_MSG)
+        else:
+            await update.message.reply_text("Напишите тест чтобы начать тест.")
 
     elif step == "test":
         lines = [l.strip() for l in text.split("\n") if l.strip()]
@@ -256,11 +280,7 @@ async def message_handler(update, context):
             context.user_data["step"] = "materials"
             await update.message.reply_text(
                 "К сожалению, вы набрали меньше 5 правильных ответов.\n\n"
-                "Пожалуйста, повторно изучите материалы и пройдите тест заново.\n\n"
-                "Нажмите кнопку чтобы пройти тест ещё раз:",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Пройти тест заново", callback_data="start_test")]
-                ])
+                "Пожалуйста, повторно изучите материалы и напишите тест чтобы пройти заново."
             )
             return
 
@@ -271,6 +291,8 @@ async def message_handler(update, context):
         curator_name = context.user_data.get("curator", "Неизвестно")
         curator_info = CURATORS.get(curator_name, {})
         curator_whatsapp = curator_info.get("whatsapp", "")
+        curator_id = curator_info.get("id")
+        curator_username = curator_info.get("username", "")
 
         await update.message.reply_text(
             "Вступайте в WhatsApp группы:\n\n"
@@ -280,13 +302,10 @@ async def message_handler(update, context):
             "Чат заявок студентов:\n"
             "https://chat.whatsapp.com/FPWhYg6tpEHKgPkrwmav4L\n"
             "https://chat.whatsapp.com/G6cb9sSkJFiEG3BgJ5oGFq\n\n"
-            "После того как вступили - нажмите кнопку:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Я вступил в чаты", callback_data="joined_whatsapp")]
-            ])
+            "Когда вступили во все чаты - напишите вступил"
         )
-        curator_id = curator_info.get("id")
-        curator_username = curator_info.get("username", "")
+        context.user_data["step"] = "whatsapp"
+
         report = f"Результат теста (куратор: {curator_username}):\n{correct}/{total}\n\n" + "\n\n".join(report_lines)
         await context.bot.send_message(chat_id=GROUP_ID, text=report[:4000])
         if curator_id:
@@ -294,6 +313,26 @@ async def message_handler(update, context):
                 await context.bot.send_message(chat_id=curator_id, text=report[:4000])
             except:
                 pass
+
+    elif step == "whatsapp":
+        if "вступил" in text.lower() or "вступила" in text.lower():
+            curator_name = context.user_data.get("curator", "Неизвестно")
+            curator_info = CURATORS.get(curator_name, {})
+            curator_id = curator_info.get("id")
+            curator_username = curator_info.get("username", "")
+            user = update.message.from_user
+            username = f"@{user.username}" if user.username else user.full_name
+            msg = f"Преподаватель {username} вступил в WhatsApp чаты! Куратор: {curator_username}"
+            await context.bot.send_message(chat_id=GROUP_ID, text=msg)
+            if curator_id:
+                try:
+                    await context.bot.send_message(chat_id=curator_id, text=msg)
+                except:
+                    pass
+            context.user_data["step"] = "done"
+            await update.message.reply_text("Отлично! Добро пожаловать в команду! Ваш куратор уведомлен.")
+        else:
+            await update.message.reply_text("Напишите вступил когда вступите во все чаты.")
 
     elif step == "done":
         await update.message.reply_text("Вы уже завершили оформление! Если нужно начать заново - напишите /start")
